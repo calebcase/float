@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+float_pid() {
+  local pid=$1
+  swaymsg -t subscribe -m '[ "window" ]' |
+    jq --unbuffered --argjson pid "$$" '.container | select(.pid == $pid) | .id' |
+    while IFS='' read id; do
+      swaymsg "[ con_id=$id ] floating enable"
+      break
+    done
+}
+
+float_pid "$$" &
+
+# Attempt to clean up our subprocesses on exit by kill the pgid (process group
+# id) (rather than the specific background'd PID).
+(tail --pid "$$" -f /dev/null; kill -9 -"$$") &
+
+# `exec` replaces this script with the desired application (while keeping the
+# current PID). `float_pid` above will watch for the current PID to appear and
+# then set it to floating.
+exec "$@"
